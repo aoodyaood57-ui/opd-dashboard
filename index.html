@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPD รพ.เด็ก – แผนที่คิวสด</title>
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--sky:#7dd3fc;--sun:#ffd66b;--coral:#ff8fa3;--mint:#86e3b6;--lilac:#c4b5fd;--bg:#eaf6ff;--ink:#3b3a5a;--mute:#7a7a9a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:'Mali',sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden;user-select:none}
+h1,h2,b{font-family:'Mitr',sans-serif;font-weight:500}
+h1{font-size:18px;margin:0}h2{font-size:15px;margin:0}
+small{font-size:11px;color:var(--mute)}
+button,select{font:inherit;border:0;border-radius:14px;padding:6px 12px;background:var(--sky);color:var(--ink);cursor:pointer}
+button:focus-visible,select:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button.paused{background:var(--sun)}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:4px solid var(--sun);flex-wrap:wrap}
+.logo,.ico{display:grid;place-items:center;border-radius:50%;background:var(--sun)}
+.logo{width:44px;height:44px;font-size:26px}
+.kpis{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.kpi{border-radius:18px;padding:6px 14px;min-width:112px}
+.kpi b{font-size:19px;display:block}
+.k1{background:#dff3ff}.k2{background:#fff1c9}.k3{background:#ffe0e6}
+.ctl{display:flex;align-items:center;gap:6px}
+#clock{text-align:right;line-height:1.2}#clock b{font-size:16px;display:block}
+main{position:relative;flex:1;min-height:0}
+#isometricCanvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#isometricCanvas:active{cursor:grabbing}
+aside{position:absolute;top:12px;left:12px;width:min(310px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;background:#fff;border-radius:24px;padding:14px;border:3px solid var(--lilac);box-shadow:0 6px 0 rgba(59,58,90,.12);display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.head{justify-content:flex-start}.head>div{flex:1}
+.ico{width:36px;height:36px;font-size:20px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{border-radius:16px;padding:8px 12px}.tile b{font-size:22px;display:block}
+.t1{background:#dff3ff}.t2{background:#fff1c9}
+.bar{height:12px;border-radius:99px;background:#eceaf8;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--mint);transition:width .6s}
+.util{background:#f1fbf6;border-radius:16px;padding:8px 12px}
+#staffList{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto}
+.staff{display:flex;align-items:center;gap:8px;background:#f7f5ff;border-radius:12px;padding:6px 10px;font-size:12px}
+.staff i{width:10px;height:10px;border-radius:50%;flex:none}.staff span{flex:1}
+.chart{height:110px;position:relative}
+.legend{position:absolute;right:12px;bottom:12px;background:#fff;border-radius:18px;padding:10px 14px;border:3px solid var(--sun);font-size:12px;display:flex;flex-direction:column;gap:4px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+footer{display:flex;align-items:center;gap:10px;padding:6px 14px;background:#fff;border-top:4px solid var(--sky);font-size:12px}
+footer .tag{background:var(--sun);border-radius:99px;padding:2px 10px;flex:none}
+#tickerBox{overflow:hidden;white-space:nowrap;flex:1}
+#activityTicker{display:inline-block;animation:mq 45s linear infinite}
+@keyframes mq{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+@media (max-width:640px){.legend{display:none}aside{top:auto;bottom:12px;max-height:48%}.kpis{margin-left:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🏥</div>
+  <div><h1>OPD รพ.เด็ก – แผนที่คิวสด</h1><small id="status">กำลังเชื่อมต่อ…</small></div>
+  <div class="kpis">
+    <div class="kpi k1"><small>ผู้ป่วยในผัง</small><b id="totalPatientsCount">-</b></div>
+    <div class="kpi k2"><small>รอเฉลี่ย</small><b id="avgWaitTime">-</b></div>
+    <div class="kpi k3"><small>รอเกิน 20 นาที</small><b id="delayedCount">-</b></div>
+  </div>
+  <div id="clock"><b id="clockDisplay">--:--:--</b><small id="dateDisplay"></small></div>
+  <div class="ctl">
+    <button id="playPauseBtn">⏸ สด</button>
+    <select id="speedSelect" aria-label="ความเร็วแอนิเมชัน"><option value="1">x1</option><option value="2">x2</option><option value="4">x4</option><option value="8">x8</option></select>
+  </div>
+</header>
+<main>
+  <canvas id="isometricCanvas"></canvas>
+  <aside id="inspectorPanel">
+    <div class="row head">
+      <span id="zoneIcon" class="ico">🏥</span>
+      <div><h2 id="zoneTitle">ภาพรวม OPD</h2><small id="zoneSubtitle"></small></div>
+      <button id="resetViewBtn" title="กลับมุมมองเดิม" aria-label="กลับมุมมองเดิม">↺</button>
+    </div>
+    <div class="tiles">
+      <div class="tile t1"><small>รอคิวอยู่</small><b id="statCurrentQueue">-</b></div>
+      <div class="tile t2"><small>รอเฉลี่ย</small><b id="statAvgWait">-</b></div>
+    </div>
+    <div class="util">
+      <div class="row"><small>โต๊ะ/ช่องที่กำลังใช้งาน</small><b id="utilizationPercent">0%</b></div>
+      <div class="bar"><i id="utilizationBar"></i></div>
+    </div>
+    <div class="row"><b>จุดบริการ</b><small id="staffOpen"></small></div>
+    <div id="staffList"></div>
+    <b>ผู้ป่วยรายชั่วโมง</b>
+    <div class="chart"><canvas id="zoneHourlyChart"></canvas></div>
+  </aside>
+  <div class="legend">
+    <b>สีบอกเวลารอ</b>
+    <span><i style="background:#34d399"></i>รอน้อย (&lt; 10 นาที)</span>
+    <span><i style="background:#fbbf24"></i>ปานกลาง (10–20)</span>
+    <span><i style="background:#f43f5e"></i>นานเกิน (&gt; 20)</span>
+  </div>
+</main>
+<footer>
+  <span class="tag">⚡ ล่าสุด</span>
+  <div id="tickerBox"><span id="activityTicker"></span></div>
+</footer>
+
+<script>
+        // --- 1. Zone & Layout Mapping based on real image ---
+        const ZONES = {
+            ENTRANCE: { id: 'entrance', name: '1. ทางเข้า', x: 420, y: 720, w: 160, h: 60, color: '#06b6d4', icon: 'fa-right-to-bracket', floorColor: 'rgba(59,58,90,0.22)' },
+            REGISTRATION: { id: 'registration', name: '2. ห้องบัตร', x: 620, y: 530, w: 120, h: 220, color: '#3b82f6', icon: 'fa-id-card', floorColor: 'rgba(59, 130, 246, 0.35)' },
+            SCREENING: { id: 'screening', name: '3.เคาน์เตอร์พยาบาล screening\n4.พยาบาลหน้าห้องตรวจ', x: 310, y: 380, w: 230, h: 200, color: '#10b981', icon: 'fa-user-nurse', floorColor: 'rgba(16, 185, 129, 0.35)' },
+            PLAY_AREA: { id: 'play_area', name: 'พื้นที่เด็กเล่น (มีจอ dashboard)', x: 30, y: 700, w: 320, h: 120, color: '#ec4899', icon: 'fa-child-reaching', floorColor: 'rgba(236, 72, 153, 0.35)' },
+            PHARMACY: { id: 'pharmacy', name: 'ห้องยา', x: 30, y: 300, w: 170, h: 370, color: '#8b5cf6', icon: 'fa-pills', floorColor: 'rgba(139, 92, 246, 0.35)' },
+            FINANCE: { id: 'finance', name: 'ห้องการเงิน', x: 30, y: 170, w: 170, h: 110, color: '#f59e0b', icon: 'fa-file-invoice-dollar', floorColor: 'rgba(245, 158, 11, 0.35)' },
+            EXAM_1_4: { id: 'exam_1_4', name: 'ห้องตรวจ 1 - 4', x: 210, y: 20, w: 460, h: 120, color: '#06b6d4', icon: 'fa-stethoscope', floorColor: 'rgba(6, 182, 212, 0.35)' },
+            LAB: { id: 'lab', name: 'ห้อง LAB', x: 690, y: 10, w: 150, h: 140, color: '#14b8a6', icon: 'fa-vial', floorColor: 'rgba(20, 184, 166, 0.35)' },
+            EXAM_5_6: { id: 'exam_5_6', name: 'ห้องตรวจ 5 - 6', x: 620, y: 340, w: 200, h: 160, color: '#0284c7', icon: 'fa-user-md', floorColor: 'rgba(2, 132, 199, 0.35)' },
+            XRAY: { id: 'xray', name: 'ห้อง X-RAYS', x: 880, y: 170, w: 160, h: 170, color: '#6366f1', icon: 'fa-x-ray', floorColor: 'rgba(99, 102, 241, 0.35)' },
+            ER: { id: 'er', name: 'ห้องฉุกเฉิน / ER', x: 830, y: 500, w: 210, h: 290, color: '#f43f5e', icon: 'fa-truck-medical', floorColor: 'rgba(244, 63, 94, 0.35)' }
+        };
+
+        // Patient Routing Flow Sequence
+        const PATIENT_FLOW_PATHS = [
+            ['ENTRANCE', 'REGISTRATION', 'SCREENING', 'EXAM_1_4', 'FINANCE', 'PHARMACY', 'PLAY_AREA'],
+            ['ENTRANCE', 'REGISTRATION', 'SCREENING', 'EXAM_5_6', 'LAB', 'EXAM_5_6', 'FINANCE', 'PHARMACY'],
+            ['ENTRANCE', 'REGISTRATION', 'SCREENING', 'EXAM_1_4', 'XRAY', 'FINANCE', 'PHARMACY'],
+            ['ENTRANCE', 'ER', 'FINANCE', 'PHARMACY']
+        ];
+
+        // System State Variables
+        let canvas, ctx;
+        let scale = 0.85, panX = 120, panY = 60;
+        let isDragging = false, startX, startY;
+        let selectedZone = null;
+        let patients = [];
+        let isLive = true;
+        let simSpeed = 1;
+        let zoneChart = null;
+
+        // --- 2. Canvas Projection Transformation ---
+        function project(x, y) {
+            // Isometric Matrix Transformation: 2.5D Tilt Angle
+            const isoX = (x - y) * 0.866;
+            const isoY = (x + y) * 0.5;
+            return {
+                x: isoX * scale + panX + canvas.width / 2 - 350,
+                y: isoY * scale + panY + 100
+            };
+        }
+
+        // Setup Canvas Resolution
+        function initCanvas() {
+            canvas = document.getElementById('isometricCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Drag / Pan Event Listeners
+            canvas.addEventListener('pointerdown', e => {
+                isDragging = true;
+                startX = e.clientX - panX;
+                startY = e.clientY - panY;
+            });
+            window.addEventListener('pointermove', e => {
+                if (!isDragging) return;
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                
+            });
+            window.addEventListener('pointerup', () => isDragging = false);
+
+            // Zoom Control
+            canvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                const zoomFactor = e.deltaY < 0 ? 1.05 : 0.95;
+                scale = Math.min(Math.max(scale * zoomFactor, 0.4), 2.2);
+                
+            }, { passive: false });
+
+            // Zone Selection Click Listener
+            canvas.addEventListener('click', e => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                let clicked = null;
+                for (const key in ZONES) {
+                    const z = ZONES[key];
+                    const p = project(z.x + z.w/2, z.y + z.h/2);
+                    const dist = Math.hypot(p.x - mouseX, p.y - mouseY);
+                    if (dist < (z.w + z.h) * 0.3 * scale) {
+                        clicked = z;
+                        break;
+                    }
+                }
+                selectZone(clicked);
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            
+        }
+
+        // --- 3. Patient Avatars Simulation ---
+        function initPatients() {
+            patients = [];
+            for (let i = 0; i < 45; i++) {
+                spawnPatient();
+            }
+        }
+
+        function spawnPatient() {
+            const pathIndex = Math.floor(Math.random() * PATIENT_FLOW_PATHS.length);
+            const path = PATIENT_FLOW_PATHS[pathIndex];
+            const startZone = ZONES[path[0]];
+
+            patients.push({
+                id: 'Q' + (1000 + Math.floor(Math.random() * 9000)),
+                path: path,
+                currentStep: 0,
+                x: startZone.x + Math.random() * startZone.w,
+                y: startZone.y + Math.random() * startZone.h,
+                targetX: startZone.x + startZone.w/2,
+                targetY: startZone.y + startZone.h/2,
+                speed: 1.2 + Math.random() * 1.5,
+                color: ['#38bdf8', '#f472b6', '#a78bfa', '#34d399'][Math.floor(Math.random() * 4)],
+                waitTime: Math.floor(Math.random() * 25)
+            });
+        }
+
+        function updatePatients() {
+            if (!isLive) return;
+
+            patients.forEach(p => {
+                const dx = p.targetX - p.x;
+                const dy = p.targetY - p.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < 8) {
+                    // Move to next zone in path
+                    if (p.currentStep < p.path.length - 1) {
+                        p.currentStep++;
+                        const nextZoneKey = p.path[p.currentStep];
+                        const nextZone = ZONES[nextZoneKey];
+                        p.waitTime = zoneOf(nextZone.id).wait;
+                        p.targetX = nextZone.x + Math.random() * (nextZone.w - 20) + 10;
+                        p.targetY = nextZone.y + Math.random() * (nextZone.h - 20) + 10;
+                    } else {
+                        // Reset Flow Loop
+                        p.currentStep = 0;
+                        const firstZone = ZONES[p.path[0]];
+                        p.x = firstZone.x + Math.random() * firstZone.w;
+                        p.y = firstZone.y + Math.random() * firstZone.h;
+                    }
+                } else {
+                    const st = Math.min(dist, p.speed * simSpeed);
+                    p.x += (dx / dist) * st;
+                    p.y += (dy / dist) * st;
+                }
+            });
+        }
+
+        // --- 4. Render Engine 2.5D ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid Floor Background
+            drawGrid();
+
+            // Draw Flow Path Lines
+            drawFlowConnections();
+
+            // Draw Isometric Zones
+            Object.values(ZONES).sort((a, b) => (a.x + a.w/2 + a.y + a.h/2) - (b.x + b.w/2 + b.y + b.h/2)).forEach(z => drawIsometricZone(z));
+
+            // Draw Patient Avatars
+            patients.forEach(p => {
+                const pos = project(p.x, p.y);
+                
+                // Shadow
+                ctx.beginPath();
+                ctx.ellipse(pos.x, pos.y + 2, 5 * scale, 3 * scale, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fill();
+
+                // Avatar Body Dot
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y - 8 * scale, 6 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = p.waitTime > 20 ? '#f43f5e' : p.color;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1 * scale;
+                ctx.stroke();
+                ctx.fillStyle = '#3b3a5a';
+                [-2.2, 2.2].forEach(dx => { ctx.beginPath(); ctx.arc(pos.x + dx * scale, pos.y - 8.5 * scale, 0.9 * scale, 0, 7); ctx.fill(); });
+            });
+
+            // Loop Animation Frame
+            updatePatients();
+            requestAnimationFrame(draw);
+            
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(122,122,154,0.15)';
+            ctx.lineWidth = 1;
+            const gridSize = 80;
+            for (let x = -400; x <= 1400; x += gridSize) {
+                const p1 = project(x, -200);
+                const p2 = project(x, 1000);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            for (let y = -200; y <= 1000; y += gridSize) {
+                const p1 = project(-400, y);
+                const p2 = project(1400, y);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+
+        function drawFlowConnections() {
+            PATIENT_FLOW_PATHS.forEach(path => {
+                ctx.beginPath();
+                for (let i = 0; i < path.length - 1; i++) {
+                    const z1 = ZONES[path[i]];
+                    const z2 = ZONES[path[i+1]];
+                    const p1 = project(z1.x + z1.w/2, z1.y + z1.h/2);
+                    const p2 = project(z2.x + z2.w/2, z2.y + z2.h/2);
+                    if (i === 0) ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                }
+                ctx.strokeStyle = 'rgba(59,58,90,0.22)';
+                ctx.lineWidth = 2 * scale;
+                ctx.setLineDash([6 * scale, 6 * scale]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+        }
+
+        function drawIsometricZone(z) {
+            const wallHeight = 22 * scale;
+            const p1 = project(z.x, z.y);
+            const p2 = project(z.x + z.w, z.y);
+            const p3 = project(z.x + z.w, z.y + z.h);
+            const p4 = project(z.x, z.y + z.h);
+
+            const isSelected = selectedZone && selectedZone.id === z.id;
+
+            // 1. Floor Polygon
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fillStyle = isSelected ? 'rgba(255,214,107,0.7)' : z.floorColor;
+            ctx.fill();
+            ctx.strokeStyle = isSelected ? '#ff8fa3' : z.color;
+            ctx.lineWidth = isSelected ? 3 * scale : 1.5 * scale;
+            ctx.stroke();
+
+            // 2. Translucent Acrylic Glass 2.5D Walls
+            // Left/Front Wall
+            ctx.beginPath();
+            ctx.moveTo(p4.x, p4.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p3.x, p3.y - wallHeight);
+            ctx.lineTo(p4.x, p4.y - wallHeight);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(59,58,90,0.12)';
+            ctx.stroke();
+
+            // Right/Front Wall
+            ctx.beginPath();
+            ctx.moveTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p3.x, p3.y - wallHeight);
+            ctx.lineTo(p2.x, p2.y - wallHeight);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(59,58,90,0.12)';
+            ctx.stroke();
+
+            // 3. Floating 3D Badge Overlay
+            const center = project(z.x + z.w/2, z.y + z.h/2);
+            drawBadge(center.x, center.y - wallHeight - 10 * scale, z);
+        }
+
+        function drawBadge(x, y, z) {
+            const queueCount = zoneOf(z.id).queue;
+            const text = (EMOJI[z.id] || '') + ' ' + z.name.split('\n')[0];
+
+            ctx.save();
+            ctx.font = `bold ${Math.max(10, Math.floor(11 * scale))}px Mali, sans-serif`;
+            const textWidth = ctx.measureText(text).width;
+            const px = textWidth + 24 * scale;
+            const py = 20 * scale;
+
+            // Badge Background Glass Panel
+            ctx.beginPath();
+            ctx.roundRect(x - px/2, y - py/2, px, py, 6 * scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = z.color;
+            ctx.lineWidth = 1.2 * scale;
+            ctx.stroke();
+
+            // Badge Text
+            ctx.fillStyle = '#3b3a5a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x - 6 * scale, y);
+
+            // Patient Queue Count Circle
+            ctx.beginPath();
+            ctx.arc(x + px/2 - 8 * scale, y, 7 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = waitColor(zoneOf(z.id).wait);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.max(8, Math.floor(9 * scale))}px Mali`;
+            ctx.fillText(queueCount.toString(), x + px/2 - 8 * scale, y);
+
+            ctx.restore();
+        }
+
+                // --- 5. Config & data layer ---
+        const CONFIG = {
+            SOURCE: 'demo',          // 'demo' | 'gas' | 'firebase'
+            GAS_URL: '',             // URL ของ Web App (ลงท้าย /exec)
+            FIREBASE_DB_URL: '',     // เช่น https://xxxx-default-rtdb.asia-southeast1.firebasedatabase.app
+            FIREBASE_PATH: 'opd',
+            POLL_MS: 15000
+        };
+        const EMOJI = { entrance:'🚪', registration:'🪪', screening:'👩‍⚕️', play_area:'🧸', pharmacy:'💊', finance:'💰', exam_1_4:'🩺', lab:'🧪', exam_5_6:'🩺', xray:'🩻', er:'🚑' };
+        const $ = id => document.getElementById(id);
+        const EMPTY = { queue:0, wait:0, late:0, util:0, open:0, total:0, hourly:[0,0,0,0,0,0,0,0] };
+        let DATA = { zones:{}, staff:{}, events:[] };
+        const zoneOf = id => DATA.zones[id] || EMPTY;
+        const waitColor = w => w < 10 ? '#34d399' : w <= 20 ? '#fbbf24' : '#f43f5e';
+
+        function demoData() {
+            const zones = {};
+            Object.values(ZONES).forEach(z => {
+                const old = DATA.zones[z.id];
+                const queue = old ? Math.max(0, old.queue + Math.round(Math.random() * 6 - 3)) : 4 + Math.floor(Math.random() * 14);
+                const wait = old ? Math.max(2, Math.min(35, old.wait + Math.round(Math.random() * 6 - 3))) : 6 + Math.floor(Math.random() * 16);
+                const open = 3 + (Math.random() > .5 ? 1 : 0);
+                zones[z.id] = { queue, wait, late: wait > 20 ? Math.ceil(queue / 4) : 0, util: Math.min(100, 45 + queue * 2 + Math.floor(Math.random() * 10)), open, total: 4,
+                    hourly: old ? old.hourly : Array.from({length: 8}, () => 5 + Math.floor(Math.random() * 45)) };
+            });
+            const z = Object.values(ZONES)[Math.floor(Math.random() * Object.keys(ZONES).length)];
+            const ev = `[${new Date().toLocaleTimeString('th-TH')}] #Q${1000 + Math.floor(Math.random() * 9000)} เข้าคิว ${z.name.split('\n')[0]}`;
+            return { zones, staff:{}, events:[...(DATA.events || []).slice(-5), ev] };
+        }
+
+        async function loadData() {
+            if (!isLive) return;
+            try {
+                if (CONFIG.SOURCE === 'demo') {
+                    DATA = demoData();
+                } else {
+                    const url = CONFIG.SOURCE === 'gas' ? CONFIG.GAS_URL
+                        : `${CONFIG.FIREBASE_DB_URL.replace(/\/$/, '')}/${CONFIG.FIREBASE_PATH}.json`;
+                    const r = await fetch(url, { cache: 'no-store' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const d = await r.json();
+                    if (!d || !d.zones) throw new Error('ไม่พบข้อมูล zones');
+                    DATA = d;
+                }
+                setStatus(CONFIG.SOURCE === 'demo' ? 'demo' : 'live');
+                renderAll();
+            } catch (e) {
+                console.error(e);
+                setStatus('error');
+            }
+        }
+
+        function setStatus(s) {
+            const t = { demo:'🟡 โหมดตัวอย่าง (ข้อมูลจำลอง)', live:'🟢 ข้อมูลสด อัปเดต ' + new Date().toLocaleTimeString('th-TH'), error:'🔴 เชื่อมต่อไม่ได้ ใช้ข้อมูลล่าสุดที่มี' };
+            $('status').textContent = t[s];
+        }
+
+        function renderAll() {
+            const zs = Object.values(DATA.zones);
+            const total = zs.reduce((a, z) => a + z.queue, 0);
+            const wavg = total ? zs.reduce((a, z) => a + z.wait * z.queue, 0) / total : 0;
+            $('totalPatientsCount').textContent = total + ' คน';
+            $('avgWaitTime').textContent = wavg.toFixed(1) + ' นาที';
+            $('delayedCount').textContent = zs.reduce((a, z) => a + (z.late || 0), 0) + ' คน';
+            $('activityTicker').textContent = (DATA.events || []).join('     •     ');
+            selectZone(selectedZone);
+        }
+
+        // --- 6. Inspector panel ---
+        function selectZone(zone) {
+            selectedZone = zone;
+            let d, name, sub, icon, staff;
+            if (zone) {
+                d = zoneOf(zone.id);
+                name = zone.name.replace('\n', ' ');
+                sub = 'รหัสแผนก: ' + zone.id;
+                icon = EMOJI[zone.id] || '🏥';
+                staff = (DATA.staff || {})[zone.id] || [];
+            } else {
+                const zs = Object.values(DATA.zones), n = zs.length || 1;
+                const queue = zs.reduce((a, z) => a + z.queue, 0);
+                d = { queue, wait: queue ? zs.reduce((a, z) => a + z.wait * z.queue, 0) / queue : 0,
+                      util: zs.reduce((a, z) => a + z.util, 0) / n,
+                      open: zs.reduce((a, z) => a + z.open, 0), total: zs.reduce((a, z) => a + z.total, 0),
+                      hourly: Array.from({length: 8}, (_, i) => zs.reduce((a, z) => a + ((z.hourly || [])[i] || 0), 0)) };
+                name = 'ภาพรวม OPD'; sub = 'สรุป ' + Object.keys(ZONES).length + ' โซนบริการ'; icon = '🏥'; staff = [];
+            }
+            $('zoneTitle').textContent = name;
+            $('zoneSubtitle').textContent = sub;
+            $('zoneIcon').textContent = icon;
+            $('statCurrentQueue').textContent = d.queue + ' คน';
+            $('statAvgWait').textContent = Math.round(d.wait) + ' นาที';
+            $('utilizationPercent').textContent = Math.round(d.util) + '%';
+            $('utilizationBar').style.width = Math.round(d.util) + '%';
+            $('staffOpen').textContent = d.total ? `เปิด ${d.open}/${d.total} ช่อง` : '';
+            const list = $('staffList');
+            list.replaceChildren();
+            const dot = { 'ว่าง':'#34d399', 'ตรวจอยู่':'#fbbf24', 'พัก':'#c4b5fd', 'ปิด':'#cbd5e1' };
+            staff.forEach(s => {
+                const row = document.createElement('div'); row.className = 'staff';
+                const i = document.createElement('i'); i.style.background = dot[s.status] || '#cbd5e1';
+                const n = document.createElement('span'); n.textContent = `${s.name} (ตรวจแล้ว ${s.done || 0})`;
+                const st = document.createElement('small'); st.textContent = s.status;
+                row.append(i, n, st); list.append(row);
+            });
+            updateHourlyChart(d.hourly);
+        }
+
+        let lastHourly = [];
+        function loadChartLib() {
+            const sc = document.createElement('script');
+            sc.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            sc.async = true;
+            sc.onload = () => { initChart(); updateHourlyChart(lastHourly); };
+            document.head.appendChild(sc);
+        }
+
+        function initChart() {
+            if (!window.Chart || zoneChart) return;
+            zoneChart = new Chart($('zoneHourlyChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: ['08','09','10','11','12','13','14','15'].map(h => h + ':00'),
+                    datasets: [{ data: [], borderColor: '#ff8fa3', backgroundColor: 'rgba(255,143,163,.25)', borderWidth: 3, fill: true, tension: .4, pointRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#ff8fa3' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { color: '#7a7a9a', font: { size: 9 } }, grid: { display: false } },
+                              y: { beginAtZero: true, ticks: { color: '#7a7a9a', font: { size: 9 } }, grid: { color: 'rgba(122,122,154,.15)' } } } }
+            });
+        }
+
+        function updateHourlyChart(data) {
+            lastHourly = data || [];
+            if (!zoneChart) return;
+            zoneChart.data.datasets[0].data = data || [];
+            zoneChart.update();
+        }
+
+        function startClock() {
+            const tick = () => {
+                const now = new Date();
+                $('clockDisplay').textContent = now.toLocaleTimeString('th-TH');
+                $('dateDisplay').textContent = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+            tick(); setInterval(tick, 1000);
+        }
+
+        window.addEventListener('error', e => { const t = document.getElementById('status'); if (t) t.textContent = 'เกิดข้อผิดพลาด: ' + e.message; });
+        document.addEventListener('DOMContentLoaded', () => {
+            initCanvas(); initPatients(); loadChartLib(); startClock();
+            $('resetViewBtn').onclick = () => { scale = 0.85; panX = 120; panY = 60; selectZone(null); };
+            $('playPauseBtn').onclick = function () {
+                isLive = !isLive;
+                this.classList.toggle('paused', !isLive);
+                this.textContent = isLive ? '⏸ สด' : '▶ หยุดอยู่';
+            };
+            $('speedSelect').onchange = function () { simSpeed = +this.value; };
+            loadData();
+            setInterval(loadData, CONFIG.POLL_MS);
+            draw();
+        });
+    </script>
+</body>
+</html>
